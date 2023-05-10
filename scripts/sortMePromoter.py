@@ -33,7 +33,7 @@ def main():
             seq_ids.append(seq_id)
             sequences.append(sequence)
 
-    logger.info("load model ...")
+    logger.info(f"load model weights from {args.model} ...")
     model = CNNClassifier(n_channels=args.n_channels, kernel_size = args.kernel_size)
     model = model.to(args.device)
     model = model.eval()
@@ -41,8 +41,6 @@ def main():
     model.load_state_dict(state_dict) 
 
 
-    logger.info(f"predicted scores will be saved to {args.output} .")
-    fout = open(args.output,"w")
 
     batched_instances = []
     batched_positions = []
@@ -85,6 +83,9 @@ def main():
             if (seq_id not in best_scores) or (score > best_scores[seq_id]):
                 best_scores[seq_id] = score
                 best_positions[seq_id] = p
+
+    logger.info(f"saving results to {args.output} ...")
+    fout = open(args.output,"w")
 
     for i,seq_id in enumerate(seq_ids):
         if seq_id not in best_positions:

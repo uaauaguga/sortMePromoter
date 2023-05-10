@@ -1,0 +1,60 @@
+import torch
+from torch import nn
+from torch.nn import functional as F
+from transformers import BertConfig, BertModel
+import json 
+
+class CNNBlock(nn.Module):
+    """
+    CNN block
+    if shortcuts is true, it becomes a resnet block
+    """
+    def __init__(self,filters,kernel_size=3,shortcuts=False):
+        super(CNNBlock,self).__init__()
+        padding = int((kernel_size-1)/2)
+        self.conv1 = nn.Conv1d(filters, filters, kernel_size=kernel_size, stride=1, padding=padding, bias=False)
+        self.bn1   = nn.BatchNorm1d(filters, track_running_stats=True)
+        self.conv2 = nn.Conv1d(filters, filters, kernel_size=kernel_size, stride=1, padding=padding, bias=False)
+        self.bn2   = nn.BatchNorm1d(filters, track_running_stats=True)
+        self.register_buffer('shortcuts',torch.tensor(shortcuts))
+    def forward(self,x):
+        z = self.conv1(x)        #(,C,L)              
+        z = self.bn1(z).relu()
+        z = self.conv2(z)        
+        z = self.bn2(z)       #(,C,L)            
+        # Shortcut connection
+        if self.shortcuts:
+            z = z + x
+        z = z.relu()
+        return z
+    
+class CNNClassifier(nn.Module):
+    def __init__(self,shortcuts=True, n_channels=32, kernel_size = 3):
+        super().__init__()
+        self.shortcuts = shortcuts
+        self.convIn = nn.Conv1d(4, n_channels, kernel_size=5, stride=1, padding=2, bias=True) 
+        self.bnIn   = nn.BatchNorm1d(n_channels, track_running_stats=True)
+        self.resblock_1 = CNNBlock(n_channels, kernel_size, shortcuts=True)
+        self.resblock_2 = CNNBlock(n_channels, kernel_size, shortcuts=True)
+        self.resblock_3 = CNNBlock(n_channels, kernel_size, shortcuts=True)
+        self.resblock_4 = CNNBlock(n_channels, kernel_size, shortcuts=True)
+        self.resblock_5 = CNNBlock(n_channels, kernel_size, shortcuts=True)
+        self.avgpool = nn.AdaptiveAvgPool1d(1)   # pooling each channel of arbitrary size to (1,1)
+        self.fcOut   = nn.Linear(n_channels, 2, bias=True)
+        self.softmax = nn.LogSoftmax(dim=-1)
+
+    def forward(self, x):
+        z = self.convIn(x)
+        z = self.bnIn(z)
+        z = z.relu()
+        z = self.resblock_1(z)
+        z = self.resblock_2(z)
+        z = self.resblock_3(z)
+        z = self.resblock_4(z)
+        z = self.resblock_5(z)
+        z = self.avgpool(z)
+        z = z.view(z.size(0), -1)
+        z = self.fcOut(z)
+        return self.softmax(z)
+
+

@@ -7,7 +7,7 @@ class CNNBlock(nn.Module):
     CNN block
     if shortcuts is true, it becomes a resnet block
     """
-    def __init__(self,filters,kernel_size=3,shortcuts=False):
+    def __init__(self,filters,kernel_size=3,shortcuts=True):
         super(CNNBlock,self).__init__()
         padding = int((kernel_size-1)/2)
         self.conv1 = nn.Conv1d(filters, filters, kernel_size=kernel_size, stride=1, padding=padding, bias=False)
@@ -27,16 +27,13 @@ class CNNBlock(nn.Module):
         return z
     
 class CNNClassifier(nn.Module):
-    def __init__(self,shortcuts=True, n_channels=32, kernel_size = 3):
+    def __init__(self,shortcuts=True, n_channels=64, kernel_size = 3, n_blocks = 10):
         super().__init__()
         self.shortcuts = shortcuts
+        self.n_channels = n_channels
         self.convIn = nn.Conv1d(4, n_channels, kernel_size=5, stride=1, padding=2, bias=True) 
         self.bnIn   = nn.BatchNorm1d(n_channels, track_running_stats=True)
-        self.resblock_1 = CNNBlock(n_channels, kernel_size, shortcuts=True)
-        self.resblock_2 = CNNBlock(n_channels, kernel_size, shortcuts=True)
-        self.resblock_3 = CNNBlock(n_channels, kernel_size, shortcuts=True)
-        self.resblock_4 = CNNBlock(n_channels, kernel_size, shortcuts=True)
-        self.resblock_5 = CNNBlock(n_channels, kernel_size, shortcuts=True)
+        self.resblocks = nn.ModuleList([CNNBlock(n_channels, kernel_size, shortcuts=True) for i in range(n_blocks)])
         self.avgpool = nn.AdaptiveAvgPool1d(1)   # pooling each channel of arbitrary size to (1,1)
         self.fcOut   = nn.Linear(n_channels, 2, bias=True)
         self.softmax = nn.LogSoftmax(dim=-1)
@@ -45,11 +42,8 @@ class CNNClassifier(nn.Module):
         z = self.convIn(x)
         z = self.bnIn(z)
         z = z.relu()
-        z = self.resblock_1(z)
-        z = self.resblock_2(z)
-        z = self.resblock_3(z)
-        z = self.resblock_4(z)
-        z = self.resblock_5(z)
+        for resblock in self.resblocks:
+            z = resblock(z)
         z = self.avgpool(z)
         z = z.view(z.size(0), -1)
         z = self.fcOut(z)

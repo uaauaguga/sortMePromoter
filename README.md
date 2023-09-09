@@ -8,6 +8,6 @@
 ## Usage
 
 ```bash
-scripts/sortMePromoter.py --fasta examples/RF00174-Cobalamin-U75-D25.fa --output examples/RF00174-Cobalamin-U75-D25.bed
+scripts/sortMePromoter.py --fasta examples/TPP.with.shuffled.fa --output examples/TPP.with.shuffled.txt
 ``` 
  

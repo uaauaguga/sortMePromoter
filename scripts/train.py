@@ -51,7 +51,7 @@ def main():
     model = model.to(args.device)
     optimizer = Adam(model.parameters(), lr=0.001)
 
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.NLLLoss()
 
     train_losses = []
     for e in range(50):
